@@ -25,8 +25,9 @@ async function fetchCategories() {
         const url = isGitHub ? '/api/categories' : '/api/categories'; // GitHub can't serve this dynamically. 
         // fallback: If GitHub, we just use the static list defined below or extracted from video list.
         if (isGitHub) {
-            // Mock categories for GitHub Pages (since we don't have a static categories.json yet)
-            renderCategories(["Tudo", "Amador", "Brasileira", "Novinhas", "Outros"]);
+            // Mock categories for GitHub Pages (Synced with main.py)
+            const categories = ["Tudo", "Amador", "Anal", "ASMR", "Asiática", "BBW", "Bi", "Boquete", "Brasileira", "Brazilian", "Bunda Grande", "Casada", "Caseiro", "Coroa", "DP", "Fisting", "Gangbang", "Gay", "Gostosa", "Hardcore", "IA", "Indiano", "Interracial", "Japonesa", "Latina", "Legendado", "Lésbicas", "Lingerie", "Loira", "Madrasta", "Mae", "Magrinha", "Massagem", "Meias", "Milf", "Morena", "Novinhas", "Outros", "Pau grande", "Peitão", "Pov", "Preto", "Profissional", "Ruivas", "Siririca", "Softcore", "Solo", "Squirting", "Transexual"];
+            renderCategories(categories.sort());
             return;
         }
 
