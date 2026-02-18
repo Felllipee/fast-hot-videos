@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="pt-br" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fast Hot Premium | Streaming Exclusivo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#dc2626">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #08080a;
+            color: white;
+            overflow-x: hidden;
+            scrollbar-gutter: stable;
+        }
+
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .glass {
+            background: rgba(8, 8, 10, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .hero-gradient {
+            background: linear-gradient(to top, #08080a 0%, rgba(8, 8, 10, 0.4) 60%, transparent 100%);
+        }
+
+        .hero-side-gradient {
+            background: linear-gradient(to right, #08080a 0%, rgba(8, 8, 10, 0.2) 50%, transparent 100%);
+        }
+
+        .animate-pulse-slow {
+            animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: .7;
+            }
+        }
+
+        .premium-card:hover {
+            border-color: rgba(220, 38, 38, 0.5);
+            box-shadow: 0 0 20px rgba(220, 38, 38, 0.2);
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: -1000px 0;
+            }
+
+            100% {
+                background-position: 1000px 0;
+            }
+        }
+
+        .skeleton {
+            background: linear-gradient(90deg, #1a1a1e 25%, #2a2a2e 50%, #1a1a1e 75%);
+            background-size: 1000px 100%;
+            animation: shimmer 2s infinite linear;
+        }
+
+        .flame-text {
+            color: #ff4d00;
+            text-shadow: 0 0 10px #ff0000, 0 0 20px #ff4d00, 0 0 40px #ffae00;
+            animation: flame 0.5s infinite alternate;
+        }
+
+        @keyframes flame {
+            0% {
+                text-shadow: 0 0 10px #ff0000, 0 0 20px #ff4d00, 0 0 30px #ffae00;
+                transform: skewX(-1deg);
+            }
+
+            100% {
+                text-shadow: 0 0 15px #ff0000, 0 0 25px #ff4d00, 0 0 45px #ffae00;
+                transform: skewX(1deg);
+            }
+        }
+
+        .flame-icon {
+            filter: drop-shadow(0 0 5px #ff4d00);
+            animation: flicker 0.1s infinite;
+        }
+
+        @keyframes flicker {
+            0% {
+                opacity: 0.9;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.8;
+            }
+        }
+    </style>
+</head>
+
+<body class="min-h-screen pb-20 selection:bg-red-600 selection:text-white">
+
+    <!-- Premium Header -->
+    <header class="fixed top-0 left-0 right-0 z-[100] glass">
+        <div class="container mx-auto px-4 lg:px-6 h-16 flex items-center justify-between gap-4">
+            <!-- Logo -->
+            <div class="flex items-center gap-2 flex-shrink-0 cursor-pointer" onclick="window.location.reload()">
+                <span class="text-xl font-bold tracking-tighter uppercase italic flex items-center gap-1">
+                    Fast<span class="flame-text not-italic">Hot</span>
+                    <svg class="w-5 h-5 text-[#ff4d00] flame-icon" fill="currentColor" viewBox="0 0 24 24">
+                        <path
+                            d="M12 2C12 2 11 4.5 11 6C11 7.5 12 9 12 9C12 9 13 7.5 13 6C13 4.5 12 2 12 2ZM8.5 6C8.5 6 7 8.5 7 10.5C7 12.5 9 14 9 14C9 14 10.5 12.5 10.5 10.5C10.5 8.5 8.5 6 8.5 6ZM15.5 6C15.5 6 17.5 8.5 17.5 10.5C17.5 12.5 16 14 16 14C16 14 14.5 12.5 14.5 10.5C14.5 8.5 15.5 6 15.5 6ZM12 12C12 12 9 16 9 19C9 22 12 23 12 23C12 23 15 22 15 19C15 16 12 12 12 12Z" />
+                    </svg>
+                </span>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="hidden lg:flex items-center gap-6">
+                <a href="#" onclick="filterByCategory('Tudo')"
+                    class="text-xs font-bold uppercase tracking-widest text-red-600">Início</a>
+                <button onclick="toggleShowOnlyFavorites()" id="navFavorites"
+                    class="text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white transition-colors flex items-center gap-2">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z">
+                        </path>
+                    </svg>
+                    Favoritos
+                </button>
+                <a href="#shortsSection"
+                    class="text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white transition-colors">Curtos</a>
+                <a href="#"
+                    class="text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white transition-colors">Premium</a>
+            </nav>
+
+            <!-- Search -->
+            <div class="flex items-center gap-4 flex-grow max-w-md lg:max-w-xs">
+                <div class="relative w-full">
+                    <input type="text" id="searchInput" placeholder="Busque algo quente..."
+                        class="w-full bg-white/5 border border-white/10 rounded-full px-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-600/50 transition-all pl-10 text-white placeholder:text-gray-500">
+                    <svg class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="relative h-[70vh] md:h-[85vh] w-full flex items-end justify-start overflow-hidden pt-16">
+        <video id="heroVideo" class="absolute inset-0 w-full h-full object-cover opacity-50 pointer-events-none"
+            autoplay muted loop playsinline></video>
+        <div class="absolute inset-0 hero-gradient"></div>
+        <div class="absolute inset-0 hero-side-gradient"></div>
+
+        <div class="relative z-10 container mx-auto px-6 pb-20 max-w-4xl">
+            <div class="flex items-center gap-2 mb-4">
+                <span
+                    class="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-widest">Original</span>
+                <span class="text-gray-400 text-xs font-medium">Fast Hot Produções • 2026</span>
+            </div>
+            <h1 class="text-5xl md:text-8xl font-black mb-4 tracking-tighter leading-none italic uppercase">
+                BEM <br /> <span class="text-red-600 not-italic">VINDO(A)!</span>
+            </h1>
+            <p class="text-gray-300 text-lg md:text-xl mb-8 max-w-xl font-light">
+                Experiência ultra-premium sem censura direto na sua pele. Prazer e puro tesão no maior streaming
+                exclusivo.
+            </p>
+            <div class="flex flex-wrap gap-4">
+                <button onclick="document.getElementById('recent').scrollIntoView({behavior: 'smooth'})"
+                    class="bg-red-600 text-white hover:bg-red-700 px-8 py-3 rounded-xl font-bold flex items-center gap-3 transition-all transform active:scale-95 shadow-xl shadow-red-600/20">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Ver Vídeos
+                </button>
+                <button onclick="filterByCategory('Outros')"
+                    class="bg-white/5 backdrop-blur-md text-white hover:bg-white/10 px-8 py-3 rounded-xl font-bold flex items-center gap-3 transition-all border border-white/10 uppercase text-[10px] tracking-[0.2em]">
+                    🔥 Mais Vistos
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 md:px-6 relative z-20 -mt-10">
+
+        <!-- Categories -->
+        <div id="categoryContainer" class="flex items-center gap-3 overflow-x-auto hide-scrollbar py-6 mb-8">
+            <button onclick="filterByCategory('Tudo')" id="cat-Tudo"
+                class="px-6 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap border bg-red-600 border-red-600 text-white shadow-lg shadow-red-600/30">
+                Tudo
+            </button>
+            <!-- Generated Categories -->
+        </div>
+
+        <!-- Shorts Section -->
+        <section id="shortsSection" class="mb-16 hidden">
+            <h2 class="text-2xl font-black mb-8 flex items-center gap-3 uppercase tracking-tighter italic">
+                <svg class="w-8 h-8 text-red-600" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                        d="M17.74 3.53H6.26c-.7 0-1.27.57-1.27 1.27v14.4c0 .7.57 1.27 1.27 1.27h11.48c.7 0 1.27-.57 1.27-1.27V4.8c0-.7-.57-1.27-1.27-1.27zM9.5 14.5v-5l4.5 2.5-4.5 2.5z" />
+                </svg>
+                Fast Hot Shorts
+            </h2>
+            <div id="shortsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                <!-- Shorts cards -->
+            </div>
+            <div class="mt-12 border-b border-white/5"></div>
+        </section>
+
+        <!-- Recommended Section -->
+        <section id="recent" class="mb-16">
+            <h2 id="sectionTitle"
+                class="text-2xl font-black mb-8 flex items-center gap-3 uppercase tracking-tighter italic">
+                <span class="w-1.5 h-8 bg-red-600 rounded-full"></span>
+                Recomendado para Você
+            </h2>
+            <div id="videoGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                <!-- Video cards -->
+            </div>
+
+            <!-- Pagination -->
+            <div id="paginationContainer" class="mt-12 flex justify-center items-center gap-2">
+                <!-- Pagination buttons will be generated here -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Premium Footer -->
+    <footer class="mt-20 py-16 border-t border-white/5 bg-[#08080a] relative z-30">
+        <div class="container mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12">
+            <div>
+                <span class="text-2xl font-black tracking-tighter uppercase mb-6 block italic">Fast<span
+                        class="text-red-600">Hot</span></span>
+                <p class="text-gray-500 text-sm leading-relaxed">
+                    Fast Hot Premium Streaming. A maior rede de curadoria de conteúdo exclusivo do Telegram direto para
+                    o seu navegador.
+                </p>
+            </div>
+            <div>
+                <h4 class="font-bold mb-6 text-white uppercase tracking-widest text-[10px]">Portal</h4>
+                <ul class="space-y-3 text-gray-500 text-sm">
+                    <li><a href="#" class="hover:text-red-500 transition-colors">Destaques Amadores</a></li>
+                    <li><a href="#" class="hover:text-red-500 transition-colors">Estúdios Premium</a></li>
+                    <li><a href="#" class="hover:text-red-500 transition-colors">Experiência POV</a></li>
+                    <li><a href="#" class="hover:text-red-500 transition-colors">Top Global</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-bold mb-6 text-white uppercase tracking-widest text-[10px]">Legal</h4>
+                <ul class="space-y-3 text-gray-500 text-sm font-medium">
+                    <li><a href="#" class="hover:text-white transition-colors">Termos de Uso</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Privacidade</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">18 U.S.C. 2257</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-bold mb-6 text-white uppercase tracking-widest text-[10px]">Telegram</h4>
+                <p class="text-gray-500 text-sm mb-4">Receba novidades ultra-secretas.</p>
+                <div class="relative">
+                    <input type="text" placeholder="Seu Username..."
+                        class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs focus:outline-none">
+                    <button class="absolute right-2 top-1/2 -translate-y-1/2 bg-red-600 p-1.5 rounded-lg">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div
+            class="container mx-auto px-6 mt-16 pt-8 border-t border-white/5 text-center text-gray-600 text-[10px] uppercase tracking-[0.3em] font-bold">
+            © 2026 Fast Hot Media Group. Prazer Garantido ou Devolvido.
+        </div>
+    </footer>
+
+    <!-- Video Modal -->
+    <div id="videoModal"
+        class="fixed inset-0 z-[200] bg-black/95 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <button onclick="closeModal()"
+            class="absolute top-6 right-6 text-gray-500 hover:text-white transition-colors z-[210]">
+            <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+
+        <div class="w-full max-w-4xl flex flex-col gap-6 animate-in fade-in zoom-in duration-300">
+            <div id="playerContainer"
+                class="relative bg-black rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(220,38,38,0.15)] border border-white/5 aspect-video w-full">
+                <video id="modalVideo" src="" controls class="w-full h-full object-contain"></video>
+            </div>
+
+            <div class="flex flex-col md:flex-row justify-between gap-6 px-2">
+                <div class="flex-grow">
+                    <h3 id="modalTitle"
+                        class="text-3xl md:text-5xl font-black text-white mb-3 tracking-tighter uppercase italic">Titulo
+                        do Video</h3>
+                    <div
+                        class="flex flex-wrap items-center gap-4 text-xs text-gray-400 font-bold uppercase tracking-widest">
+                        <span id="modalCategory"
+                            class="bg-red-600/10 text-red-500 border border-red-600/20 px-3 py-1 rounded-full">Categoria</span>
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span id="modalDuration">00:00</span>
+                        </span>
+                        <span id="modalSize" class="text-gray-500 font-bold">0 MB</span>
+                    </div>
+                </div>
+                <div class="flex gap-3 flex-shrink-0">
+                    <a id="modalDownloadBtn" href="" download
+                        class="bg-red-600 hover:bg-red-700 px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-xl shadow-red-600/20 flex items-center justify-center">
+                        Download 4K
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js?v=2"></script>
+</body>
+
+</html>

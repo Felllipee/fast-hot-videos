@@ -1,0 +1,6 @@
+quart
+requests
+python-dotenv
+pyrogram
+tgcrypto
+uvicorn

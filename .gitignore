@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.env
+venv/
+*.session
+*.session-journal
+serveo.log
+data/thumbnails/*.jpg # Do not push thumbnails (optional, but good for size)
+# Keep data/videos.json tracked though
