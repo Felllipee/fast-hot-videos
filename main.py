@@ -201,9 +201,8 @@ async def menu_handler(client: Client, message: Message):
         ])
     )
 
-async def list_videos_func(client: Client, user_id: int, message_to_edit=None):
+async def list_videos_func(client: Client, user_id: int, message_to_edit=None, page=0):
     videos = load_videos()
-    # Filter videos for this user. If no user_id found (legacy), allow for anyone for now
     user_videos = [v for v in videos if v.get('user_id') == user_id or v.get('user_id') is None]
     
     if not user_videos:
@@ -214,15 +213,38 @@ async def list_videos_func(client: Client, user_id: int, message_to_edit=None):
             await client.send_message(user_id, text)
         return
 
-    text = f"📋 **Seus Vídeos ({len(user_videos)}):**\n\nClique em um vídeo para gerenciar:"
-    # Pagination or just simple list for now (Top 10)
+    PAGE_SIZE = 5
+    total_pages = (len(user_videos) + PAGE_SIZE - 1) // PAGE_SIZE
+    
+    # Ensure page is within bounds
+    if page < 0: page = 0
+    if page >= total_pages: page = total_pages - 1
+    
+    start_idx = page * PAGE_SIZE
+    end_idx = start_idx + PAGE_SIZE
+    current_page_videos = user_videos[start_idx:end_idx]
+    
+    text = f"📋 **Seus Vídeos ({len(user_videos)}):**\n\nPágina {page + 1}/{total_pages}\nClique em um vídeo para gerenciar:"
+    
     buttons = []
-    limit = min(len(user_videos), 10)
-    for i in range(limit):
-        v = user_videos[i]
+    for v in current_page_videos:
         title = v.get('title', 'Sem Título')
+        # Truncate title if too long
+        if len(title) > 30: title = title[:27] + "..."
         buttons.append([InlineKeyboardButton(f"🎥 {title}", callback_data=f"view_{v.get('id')}")])
     
+    # Navigation Buttons
+    nav_row = []
+    if page > 0:
+        nav_row.append(InlineKeyboardButton("⬅️ Anterior", callback_data=f"list_videos_page_{page-1}"))
+    
+    # Find middle button (Page indicator or just spacer)
+    nav_row.append(InlineKeyboardButton(f"📄 {page+1}/{total_pages}", callback_data="noop"))
+    
+    if page < total_pages - 1:
+        nav_row.append(InlineKeyboardButton("Próximo ➡️", callback_data=f"list_videos_page_{page+1}"))
+        
+    buttons.append(nav_row)
     buttons.append([InlineKeyboardButton("🔙 Voltar", callback_data="back_start")])
     
     if message_to_edit:
@@ -394,7 +416,11 @@ async def manage_callback_func(client: Client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
     
     if data == "list_videos":
-        await list_videos_func(client, user_id, callback_query.message)
+        await list_videos_func(client, user_id, callback_query.message, page=0)
+    
+    elif data.startswith("list_videos_page_"):
+        page = int(data.split("_")[-1])
+        await list_videos_func(client, user_id, callback_query.message, page=page)
     
     elif data == "back_start":
         user_states.pop(user_id, None)
@@ -833,7 +859,7 @@ async def start_app():
     bot.add_handler(CallbackQueryHandler(post_callback_func, filters.regex(r"^post_(\d+)")))
     bot.add_handler(MessageHandler(text_handler_func, filters.text & filters.private))
     bot.add_handler(CallbackQueryHandler(category_callback_func, filters.regex(r"^cat_(.+)")))
-    bot.add_handler(CallbackQueryHandler(manage_callback_func, filters.regex(r"^(list_videos|back_start|view_|del_|start_bulk|bulkcat_|list_bulk_delete|conf_delbulk_|exec_delbulk_)")))
+    bot.add_handler(CallbackQueryHandler(manage_callback_func, filters.regex(r"^(list_videos|list_videos_page_|back_start|view_|del_|start_bulk|bulkcat_|list_bulk_delete|conf_delbulk_|exec_delbulk_)")))
     
     await bot.start()
     
