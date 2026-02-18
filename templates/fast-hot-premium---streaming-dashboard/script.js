@@ -27,7 +27,7 @@ async function fetchCategories() {
         if (isGitHub) {
             // Mock categories for GitHub Pages (Synced with main.py)
             const categories = ["Tudo", "Amador", "Anal", "ASMR", "Asiática", "BBW", "Bi", "Boquete", "Brasileira", "Brazilian", "Bunda Grande", "Casada", "Caseiro", "Coroa", "DP", "Fisting", "Gangbang", "Gay", "Gostosa", "Hardcore", "IA", "Indiano", "Interracial", "Japonesa", "Latina", "Legendado", "Lésbicas", "Lingerie", "Loira", "Madrasta", "Mae", "Magrinha", "Massagem", "Meias", "Milf", "Morena", "Novinhas", "Outros", "Pau grande", "Peitão", "Pov", "Preto", "Profissional", "Ruivas", "Siririca", "Softcore", "Solo", "Squirting", "Transexual"];
-            renderCategories(categories.sort());
+            renderCategories(categories.sort((a, b) => a.localeCompare(b, 'pt-BR')));
             return;
         }
 
