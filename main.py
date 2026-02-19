@@ -948,9 +948,7 @@ async def start_app():
         api_id=Config.API_ID,
         api_hash=Config.API_HASH,
         bot_token=Config.BOT_TOKEN,
-        sleep_threshold=60,
-        ipv6=Config.IPV6, # Force IPv4 if configured
-        workers=4 # Increase concurrent workers
+        sleep_threshold=60
     )
     
     # Register handlers

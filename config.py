@@ -11,8 +11,8 @@ class Config:
     OWNER_ID = int(os.getenv("OWNER_ID", 0))
     PORT = int(os.getenv("PORT", 8080)) # Changed default to match project
     WEB_SERVER_BIND_ADDRESS = os.getenv("WEB_SERVER_BIND_ADDRESS", "0.0.0.0")
-    # IPv6 can cause delays on some networks
-    IPV6 = False # Manual override for VPN/Domain
+    # IPv6 can cause delays on some networks, but disabling it might break others?
+    # IPV6 = False # Manual override for VPN/Domain
     BASE_URL = os.getenv("BASE_URL") # Manual override for VPN/Domain
     
     # Validation
