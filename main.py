@@ -225,24 +225,53 @@ async def prefetch_thumbnails():
     logger.info("Prefetcher stopped.")
 
 # --- STREAMING UTILITIES ---
-async def stream_video_from_telegram(identifier: str, file_id: str, start: int, end: int, status_code: int, headers: dict):
+async def stream_video_from_telegram(identifier: str, file_id: str, start: int, end: int | None, status_code: int, headers: dict):
     """
     Streams a video file from Telegram using Pyrogram's stream_media.
     Optimized for efficient chunking and includes error handling.
     """
+    CHUNK_SIZE = 1024 * 1024 # 1MB Pyrogram Chunks
+    
     try:
-        # Use bot.stream_media for efficient streaming with optimized chunk size
-        # 1MB chunks seemed to work best for Telegram limits vs speed
+        offset_chunks = start // CHUNK_SIZE
+        start_in_chunk = start % CHUNK_SIZE
+        
+        # Calculate limit in chunks roughly, or let it stream to end
+        # stream_media limit is also likely in chunks if offset is. 
+        # But for safety, we usually just stream and break or let limit=0 (all).
+        # We'll use 0 for limit to avoid confusion and rely on client closing stream.
+        
         stream = bot.stream_media(
             file_id,
-            offset=start,
-            limit=end - start + 1 if end is not None else 0
+            offset=offset_chunks,
+            limit=0 
         )
         
         async def stream_chunks():
+            first = True
+            bytes_sent = 0
+            to_send = (end - start + 1) if end is not None else None
+            
             try:
                 async for chunk in stream:
+                    # Adjust first chunk for byte offset
+                    if first:
+                        if start_in_chunk > 0:
+                            chunk = chunk[start_in_chunk:]
+                        first = False
+                    
+                    chunk_len = len(chunk)
+                    
+                    # Truncate last chunk if we have a limit
+                    if to_send is not None:
+                        if bytes_sent + chunk_len > to_send:
+                            chunk = chunk[:to_send - bytes_sent]
+                            yield chunk
+                            break
+                    
                     yield chunk
+                    bytes_sent += chunk_len
+                    
             except Exception as e:
                 logger.error(f"Stream chunk error: {e}")
 
@@ -718,68 +747,18 @@ async def stream_video(identifier):
                     end = int(match.group(2))
                 status_code = 206
 
-        # Chunk size for internal logic (Pyrogram uses 1MB)
-        CHUNK_SIZE = 1024 * 1024
-        
-        async def generate():
-            if not bot: return
-            
-            # Simple offset calculation
-            offset_chunks = start // CHUNK_SIZE
-            start_in_chunk = start % CHUNK_SIZE
-            
-            # RESILIENT STREAMING
-            MAX_RETRIES = 3
-            retry_count = 0
-            
-            while retry_count < MAX_RETRIES:
-                try:
-                    # Stream from Telegram
-                    first = True
-                    # If retrying, we might want to adjust offset, but bot.stream_media takes chunk offset.
-                    # Ideally we track how many bytes we sent and resume, but Pyrogram granularity is 1MB chunks.
-                    # For simplicity in this MVP, we restart the chunk we were on if it failed mid-way, 
-                    # but since we yield directly, the browser handles the "where to resume" via new range requests usually.
-                    # So here catching an error mostly helps purely transient network glitches during a chunk fetch.
-                    
-                    async for chunk in bot.stream_media(file_id, offset=offset_chunks):
-                        if first and start_in_chunk > 0:
-                            yield chunk[start_in_chunk:]
-                            first = False
-                        else:
-                            yield chunk
-                        
-                        # If we successfully yield a chunk, we are making progress.
-                        # We could reset retry_count here if we wanted "infinite" retries for long streams,
-                        # provided we are strictly moving forward.
-                        retry_count = 0 
-                        
-                    # If loop finishes normally
-                    break
-                    
-                except Exception as e:
-                    retry_count += 1
-                    logger.warning(f"Streaming chunk error (Attempt {retry_count}/{MAX_RETRIES}): {e}")
-                    if retry_count >= MAX_RETRIES:
-                        logger.error(f"Streaming failed after retries: {e}")
-                        break
-                    await asyncio.sleep(1) # Wait before retry
-
         headers = {
-            "Accept-Ranges": "bytes",
             "Content-Type": "video/mp4",
-            "Access-Control-Allow-Origin": "*",
+            "Accept-Ranges": "bytes",
         }
         
-        # We only send Content-Range if we are confident, otherwise standard 200 stream often works better for unstable sources
-        if status_code == 206 and end is not None:
+        if end is not None:
+             headers["Content-Length"] = str(end - start + 1)
+
+        if range_header:
             headers["Content-Range"] = f"bytes {start}-{end}/{file_size}"
-            # IMPORTANT: We do NOT set Content-Length here to avoid ProtocolError if we are off by 1 byte
-            # Quart/Hypercorn will handle chunked encoding
-        elif file_size > 0:
-            headers["Content-Length"] = str(file_size)
             
-        return Response(generate(), status=status_code, headers=headers)
+        return await stream_video_from_telegram(identifier, file_id, start, end, status_code, headers)
     except Exception as e:
         logger.error(f"Stream error: {e}")
         return str(e), 500
