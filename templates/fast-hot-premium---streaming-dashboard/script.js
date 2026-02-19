@@ -225,21 +225,60 @@ function addPageBtn(i, container) {
     container.appendChild(btn);
 }
 
+// Lazy Loading Observer for Videos with Throttling
+const videoObserver = new IntersectionObserver((entries, observer) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            const video = entry.target;
+            // Only switch to metadata preload when visible
+            if (video.getAttribute('preload') === 'none') {
+                video.setAttribute('preload', 'metadata');
+                // Optional: Try to load a bit to force first frame
+                // video.load(); 
+            }
+            observer.unobserve(video);
+        }
+    });
+}, {
+    rootMargin: '50px 0px', // Load slightly before view
+    threshold: 0.1
+});
+
+function lazyLoadVideo(videoElement) {
+    videoObserver.observe(videoElement);
+}
+
 function renderCard(video, container, isShort) {
     const vId = video.id || video.file_id;
-    // Prefer thumb_id (Telegram), otherwise use placeholder
-    const thumbUrl = video.thumb_id ? `/thumb/${video.thumb_id}` : '/static/img/no_thumb.png';
     const isFav = favoriteIds.includes(vId);
+    // User requested "video's own image" (live preview). 
+    // We use streamUrl for src. BUT we must lazy load to prevent server crash.
+    const streamUrl = `${API_BASE}/stream/${vId}`;
 
     const card = document.createElement('div');
-    // Using img tag instead of video for better performance and to avoid bot overload
-    const thumbHtml = `<img src="${thumbUrl}" class="w-full h-full object-cover transition duration-700 group-hover:scale-110" loading="lazy">`;
+
+    // We use <video> with preload="none" initially.
+    // The IntersectionObserver below will switch it to "metadata" when in view.
+    // This staggers the load and prevents the bot from being overwhelmed.
+    const thumbHtml = `
+        <video 
+            src="${streamUrl}" 
+            class="w-full h-full object-cover brightness-75 group-hover:brightness-100 transition duration-700 group-hover:scale-110 lazy-video" 
+            muted 
+            loop 
+            playsinline 
+            preload="none" 
+            poster="/static/img/no_thumb.png"
+            onmouseover="this.play()" 
+            onmouseout="this.pause();this.currentTime=0;"
+        ></video>
+    `;
 
     if (isShort) {
         card.className = 'group relative aspect-[9/16] bg-[#0f0f12] rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.05] hover:z-10 border border-white/5 hover:border-red-600/50';
         card.innerHTML = `
             ${thumbHtml}
-            <div class="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/90 to-transparent">
+            <div class="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/90 to-transparent pointer-events-none">
                 <h3 class="font-black text-xs truncate text-white mb-1 tracking-tight uppercase italic">${video.title || "Sem Título"}</h3>
                 <div class="flex items-center justify-between text-[8px] text-gray-400 font-bold uppercase tracking-widest">
                     <span>${video.category || "Geral"}</span>
@@ -266,6 +305,12 @@ function renderCard(video, container, isShort) {
                 </div>
             </div>
         `;
+    }
+
+    // Attach IntersectionObserver to lazy load video metadata
+    const videoEl = card.querySelector('video');
+    if (videoEl) {
+        lazyLoadVideo(videoEl);
     }
 
     const favBtn = document.createElement('button');

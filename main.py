@@ -23,7 +23,7 @@ import asyncio
 import subprocess
 import threading
 import time
-from quart import Quart, render_template, jsonify, Response, redirect, request
+from quart import Quart, render_template, jsonify, Response, redirect, request, send_from_directory
 from pyrogram import Client, filters, idle
 from pyrogram.handlers import MessageHandler, CallbackQueryHandler
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
@@ -47,7 +47,12 @@ DATA_FILE = "data/videos.json"
 if not os.path.exists("data"):
     os.makedirs("data")
 
-THUMBS_DIR = "data/thumbnails"
+# Assuming BASE_DIR is defined elsewhere or intended to be defined.
+# For this change, we'll define it as the current working directory to ensure syntactic correctness.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__)) # Added for syntactic correctness based on instruction
+
+THUMBS_DIR = os.path.join(BASE_DIR, "data", "thumbnails")
+os.makedirs(THUMBS_DIR, exist_ok=True)
 if not os.path.exists(THUMBS_DIR):
     os.makedirs(THUMBS_DIR)
 
@@ -86,6 +91,9 @@ def clean_filename(name):
 bot: Client = None # type: ignore
 # In-memory session state
 user_states: dict = {}
+
+# Rate Limiter Semaphore (Limits concurrent thumbnail downloads to prevent FloodWait)
+thumb_semaphore = asyncio.Semaphore(2)
 
 def load_videos():
     if not os.path.exists(DATA_FILE):
@@ -704,9 +712,13 @@ async def generate_thumbnail(video_id, file_id):
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, extract_frame_sync)
 
+@app_web.route("/static/<path:filename>")
+async def static_files(filename):
+    return await send_from_directory("static", filename)
+
 @app_web.route("/thumb/<identifier>")
 async def proxy_thumb(identifier):
-    if not identifier or identifier == "None":
+    if not identifier or identifier in ("None", "null"):
         return redirect("/static/img/no_thumb.png")
     
     # Check if we have it locally first
@@ -715,31 +727,29 @@ async def proxy_thumb(identifier):
         from quart import send_file
         return await send_file(thumb_path)
 
-    # SAFE MODE: Try to get the existing thumbnail from Telegram Message
-    # This avoids opening a video stream (which caused the ban)
-    # USER REQUEST: DISABLE ALL THUMBNAIL FETCHING to prevent FloodWait/Ban.
-    # We only serve if it already exists.
-    """
-    if bot and identifier.isdigit():
+    # SAFE MODE with limits: Try to get the thumbnail from Telegram
+    if bot and bot.is_connected and identifier.isdigit():
         try:
-            # We use get_messages which is lighter
-            msg = await bot.get_messages(Config.BIN_CHANNEL, int(identifier))
-            if msg and msg.video and msg.video.thumbs:
-                # Download the already existing thumbnail
-                await bot.download_media(
-                    msg.video.thumbs[0].file_id,
-                    file_name=thumb_path
-                )
-                if os.path.exists(thumb_path):
-                    from quart import send_file
-                    return await send_file(thumb_path)
-            else:
-                # Valid message but no thumbnail? Try to construct one or return default
-                pass
+            # Acquire semaphore to execute download (Wait if too many active downloads)
+            async with thumb_semaphore:
+                # We use get_messages which is lighter
+                msg = await bot.get_messages(Config.BIN_CHANNEL, int(identifier))
+                if msg and msg.video and msg.video.thumbs:
+                    # Download the thumbnail
+                    await bot.download_media(
+                        msg.video.thumbs[0].file_id,
+                        file_name=thumb_path
+                    )
+                    if os.path.exists(thumb_path):
+                        from quart import send_file
+                        return await send_file(thumb_path)
+                else:
+                     # If no thumbnail or message not found, fallback
+                     pass
         except Exception as e:
-            logger.error(f"Failed to fetch thumb from TG: {e}")
-    """
-
+            logger.warning(f"Failed to fetch thumb {identifier} from TG: {e}")
+            # Do NOT log stack trace to keep logs clean
+    
     # If all fails, return default image to avoid crashing or banning
     return redirect("/static/img/no_thumb.png")
 
