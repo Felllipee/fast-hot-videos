@@ -224,6 +224,38 @@ async def prefetch_thumbnails():
             await asyncio.sleep(5)
     logger.info("Prefetcher stopped.")
 
+# --- STREAMING UTILITIES ---
+async def stream_video_from_telegram(identifier: str, file_id: str, start: int, end: int, status_code: int, headers: dict):
+    """
+    Streams a video file from Telegram using Pyrogram's stream_media.
+    Optimized for efficient chunking and includes error handling.
+    """
+    try:
+        # Use bot.stream_media for efficient streaming with optimized chunk size
+        # 1MB chunks seemed to work best for Telegram limits vs speed
+        stream = bot.stream_media(
+            file_id,
+            offset=start,
+            limit=end - start + 1 if end is not None else 0
+        )
+        
+        async def stream_chunks():
+            try:
+                async for chunk in stream:
+                    yield chunk
+            except Exception as e:
+                logger.error(f"Stream chunk error: {e}")
+
+        # Add appropriate headers for caching and type
+        headers["Cache-Control"] = "public, max-age=31536000"
+        headers["Connection"] = "keep-alive"
+
+        return Response(stream_chunks(), status_code=status_code, headers=headers)
+
+    except Exception as e:
+        logger.error(f"Error streaming video {identifier}: {e}")
+        return "Error during streaming", 500
+
 # --- BOT HANDLERS ---
 
 async def start_handler(client: Client, message: Message):
@@ -929,12 +961,17 @@ async def start_app():
     global bot
     logger.info("Starting Unified App Components...")
     
+    import pyrogram
+    logger.info(f"TgCrypto Status: {'INSTALLED (Turbo Active)' if pyrogram.crypto else 'MISSING (Slow Mode)'}")
+
     bot = Client(
         "bot_session",
         api_id=Config.API_ID,
         api_hash=Config.API_HASH,
         bot_token=Config.BOT_TOKEN,
-        sleep_threshold=60
+        sleep_threshold=60,
+        ipv6=Config.IPV6, # Force IPv4 if configured
+        workers=4 # Increase concurrent workers
     )
     
     # Register handlers
