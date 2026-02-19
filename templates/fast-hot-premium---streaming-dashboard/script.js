@@ -268,6 +268,7 @@ function renderCard(video, container, isShort) {
             loop 
             playsinline 
             preload="none" 
+            poster="/thumb/${video.id}"
             onmouseover="this.play()" 
             onmouseout="this.pause();this.currentTime=0;"
         ></video>

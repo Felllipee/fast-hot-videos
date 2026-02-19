@@ -125,48 +125,55 @@ def delete_video_by_id(video_id):
         return True
     return False
 
+# Global shutdown event
+shutdown_event = asyncio.Event()
+
 async def prefetch_thumbnails():
     """Background task to slowly download missing thumbnails to warm up cache."""
     logger.info("Starting Background Thumbnail Prefetcher...")
-    while True:
+    while not shutdown_event.is_set():
         try:
             if not bot or not bot.is_connected:
-                await asyncio.sleep(5)
+                # Use wait_for to be responsive to shutdown
+                try:
+                    await asyncio.wait_for(shutdown_event.wait(), timeout=5)
+                except asyncio.TimeoutError:
+                    pass
                 continue
 
             videos = load_videos()
             missing_thumbs = []
             
             for v in videos:
+                if shutdown_event.is_set(): break
                 vid_id = v.get('id')
                 thumb_path = os.path.join(THUMBS_DIR, f"{vid_id}.jpg")
                 if not os.path.exists(thumb_path):
                     missing_thumbs.append(v)
 
             if not missing_thumbs:
-                # All good, sleep for a while
-                await asyncio.sleep(60)
+                try:
+                    await asyncio.wait_for(shutdown_event.wait(), timeout=60)
+                except asyncio.TimeoutError:
+                    pass
                 continue
                 
             logger.info(f"Prefetcher: Found {len(missing_thumbs)} missing thumbnails. Processing...")
             
             for v in missing_thumbs:
+                if shutdown_event.is_set(): break
                 vid_id = v.get('id')
                 thumb_path = os.path.join(THUMBS_DIR, f"{vid_id}.jpg")
                 
-                # Double check existence
-                if os.path.exists(thumb_path): 
-                    continue
+                if os.path.exists(thumb_path): continue
                     
                 file_id = v.get('file_id')
-                # If we have a thumb_id in metadata, use it (faster)
                 thumb_file_id = v.get('thumb_id')
                 
                 try:
                     if thumb_file_id:
                         await bot.download_media(thumb_file_id, file_name=thumb_path)
                     elif v.get('message_id'):
-                        # Fallback to message
                         msg = await bot.get_messages(Config.BIN_CHANNEL, int(v.get('message_id')))
                         if msg.video and msg.video.thumbs:
                              await bot.download_media(msg.video.thumbs[0].file_id, file_name=thumb_path)
@@ -174,16 +181,25 @@ async def prefetch_thumbnails():
                     if os.path.exists(thumb_path):
                         logger.info(f"Prefetched thumb for {vid_id}")
                     
-                    # Sleep to be nice to Telegram API (Anti-Flood)
-                    await asyncio.sleep(random.uniform(3.0, 6.0))
+                    # Responsive sleep
+                    try:
+                        await asyncio.wait_for(shutdown_event.wait(), timeout=random.uniform(3.0, 6.0))
+                    except asyncio.TimeoutError:
+                        pass
                     
                 except Exception as e:
                     logger.warning(f"Prefetch failed for {vid_id}: {e}")
-                    await asyncio.sleep(10) # Backoff on error
+                    try:
+                        await asyncio.wait_for(shutdown_event.wait(), timeout=10)
+                    except asyncio.TimeoutError:
+                        pass
                     
+        except asyncio.CancelledError:
+            break
         except Exception as e:
             logger.error(f"Prefetcher Loop Error: {e}")
-            await asyncio.sleep(10)
+            await asyncio.sleep(5)
+    logger.info("Prefetcher stopped.")
 
 # --- BOT HANDLERS ---
 
@@ -578,6 +594,19 @@ async def api_categories():
     # Filter CATEGORIES to keep order but only show those that have content (or is 'Tudo')
     active_categories = [cat for cat in CATEGORIES if cat == "Tudo" or cat in used_cats]
     return jsonify(active_categories)
+
+@app_web.route("/thumb/<video_id>")
+async def get_thumb(video_id):
+    # Sanitize video_id to prevent directory traversal
+    if not video_id.isdigit(): return "Invalid ID", 400
+    
+    thumb_path = os.path.join(THUMBS_DIR, f"{video_id}.jpg")
+    if os.path.exists(thumb_path):
+        from quart import send_file
+        return await send_file(thumb_path)
+    
+    # Return placeholder if not found
+    return await send_from_directory(os.path.join("static", "img"), "no_thumb.png")
 
 @app_web.route("/stream/<identifier>")
 async def stream_video(identifier):
