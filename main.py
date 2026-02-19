@@ -247,13 +247,41 @@ async def stream_video_from_telegram(identifier: str, file_id: str, start: int, 
             limit=0 
         )
         
+        # "Indian Tech" Optimization: Read-Ahead Buffer
+        # Fetches the next chunk while the current one is being sent to the client.
+        # drastically reduces lag between 1MB parts.
+        
+        async def readahead_stream(iterator, buffer_size=3):
+            """
+            Prefetches chunks from the iterator into a queue.
+            """
+            queue = asyncio.Queue(maxsize=buffer_size)
+            
+            async def producer():
+                try:
+                    async for item in iterator:
+                        await queue.put(item)
+                    await queue.put(None) # Sentinel
+                except Exception as e:
+                    logger.error(f"Readahead producer error: {e}")
+                    await queue.put(None)
+
+            asyncio.create_task(producer())
+            
+            while True:
+                item = await queue.get()
+                if item is None:
+                    break
+                yield item
+
         async def stream_chunks():
             first = True
             bytes_sent = 0
             to_send = (end - start + 1) if end is not None else None
             
             try:
-                async for chunk in stream:
+                # Wrap the stream with readahead
+                async for chunk in readahead_stream(stream, buffer_size=2):
                     # Adjust first chunk for byte offset
                     if first:
                         if start_in_chunk > 0:
