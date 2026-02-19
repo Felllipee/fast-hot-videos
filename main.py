@@ -95,17 +95,40 @@ user_states: dict = {}
 # Rate Limiter Semaphore (Limits concurrent thumbnail downloads to prevent FloodWait)
 thumb_semaphore = asyncio.Semaphore(2)
 
-def load_videos():
+# In-Memory Cache
+VIDEOS_CACHE = None
+LAST_LOAD_TIME = 0
+CACHE_DURATION = 60 # seconds
+
+def load_videos(force=False):
+    global VIDEOS_CACHE, LAST_LOAD_TIME
+    now = time.time()
+    
+    # Return cache if valid
+    if VIDEOS_CACHE is not None and not force and (now - LAST_LOAD_TIME < CACHE_DURATION):
+        return VIDEOS_CACHE
+
+    # Otherwise load from disk
     if not os.path.exists(DATA_FILE):
-        return []
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
+        VIDEOS_CACHE = []
+    else:
         try:
-            data = json.load(f)
-            return data if isinstance(data, list) else []
+            with open(DATA_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                VIDEOS_CACHE = data if isinstance(data, list) else []
         except json.JSONDecodeError:
-            return []
+            VIDEOS_CACHE = []
+            
+    LAST_LOAD_TIME = now
+    return VIDEOS_CACHE
 
 def save_videos(videos):
+    global VIDEOS_CACHE, LAST_LOAD_TIME
+    # Update Cache immediately
+    VIDEOS_CACHE = videos
+    LAST_LOAD_TIME = time.time()
+    
+    # Write to disk
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(videos, f, indent=4, ensure_ascii=False)
 
