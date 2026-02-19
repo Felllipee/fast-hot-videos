@@ -273,9 +273,17 @@ async def video_handler_func(client: Client, message: Message):
         # BULK MODE LOGIC
         if state and state.get("step") == "BULK_MODE":
             from datetime import datetime
+            
+            # Import categorizer here to avoid circular imports if any
+            from utils.categorizer import detect_category
+            
             bulk_id = state.get("bulk_id")
             title = clean_filename(message.video.file_name)
             category = state.get("category", "Outros")
+            
+            # AUTO-DETECT Logic
+            if category == "AUTO":
+                category = detect_category(title)
             
             video_entry = {
                 "id": str(forwarded_msg.id),
@@ -443,6 +451,9 @@ async def manage_callback_func(client: Client, callback_query: CallbackQuery):
     elif data == "start_bulk":
         user_states[user_id] = {"step": "WAITING_BULK_CATEGORY"}
         buttons = []
+        # Add Automatic Option First
+        buttons.append([InlineKeyboardButton("🤖 Automática (I.A. Lite)", callback_data="bulkcat_AUTO")])
+        
         row = []
         for cat in CATEGORIES:
             row.append(InlineKeyboardButton(cat, callback_data=f"bulkcat_{cat}"))
@@ -450,6 +461,7 @@ async def manage_callback_func(client: Client, callback_query: CallbackQuery):
                 buttons.append(row)
                 row = []
         if row: buttons.append(row)
+        buttons.append([InlineKeyboardButton("🔙 Voltar", callback_data="back_start")])
         await callback_query.message.edit_text("Para o envio em massa, escolha a **Categoria**:", reply_markup=InlineKeyboardMarkup(buttons))
 
     elif data.startswith("bulkcat_"):
@@ -553,7 +565,11 @@ async def api_videos():
 
 @app_web.route("/api/categories")
 async def api_categories():
-    return jsonify(CATEGORIES)
+    videos = load_videos()
+    used_cats = set(v.get('category').strip() for v in videos if v.get('category'))
+    # Filter CATEGORIES to keep order but only show those that have content (or is 'Tudo')
+    active_categories = [cat for cat in CATEGORIES if cat == "Tudo" or cat in used_cats]
+    return jsonify(active_categories)
 
 @app_web.route("/stream/<identifier>")
 async def stream_video(identifier):

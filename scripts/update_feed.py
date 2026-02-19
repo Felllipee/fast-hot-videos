@@ -7,7 +7,9 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pyrogram import Client
+from pyrogram import Client
 from config import Config
+from utils.categorizer import detect_category
 
 # Setup paths
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -82,7 +84,7 @@ async def main():
                 "file_id": message.video.file_id,
                 "file_unique_id": message.video.file_unique_id,
                 "title": title,
-                "category": "Outros", # Default category
+                "category": detect_category(title), # Auto-detect category
                 "duration": message.video.duration,
                 "file_size": message.video.file_size,
                 "width": message.video.width,
