@@ -268,7 +268,6 @@ function renderCard(video, container, isShort) {
             loop 
             playsinline 
             preload="none" 
-            poster="/static/img/no_thumb.png"
             onmouseover="this.play()" 
             onmouseout="this.pause();this.currentTime=0;"
         ></video>
@@ -289,7 +288,7 @@ function renderCard(video, container, isShort) {
     } else {
         card.className = 'group relative overflow-hidden rounded-2xl bg-[#0f0f12] border border-white/5 transition-all duration-300 hover:scale-[1.02] hover:border-red-600/50 hover:shadow-[0_0_30px_rgba(220,38,38,0.15)] cursor-pointer';
         card.innerHTML = `
-            <div class="aspect-video relative overflow-hidden rounded-xl m-2 bg-black">
+            <div class="aspect-video relative overflow-hidden bg-black">
                 ${thumbHtml}
                 <div class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
                     <div class="bg-red-600 rounded-full p-4 transform scale-75 group-hover:scale-100 transition-transform duration-300">
