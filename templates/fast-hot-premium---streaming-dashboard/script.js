@@ -5,12 +5,11 @@ let favoriteIds = JSON.parse(localStorage.getItem('fasthot_favorites') || '[]');
 let currentPage = 1;
 const itemsPerPage = 20;
 
-document.addEventListener('DOMContentLoaded', () => {
-    fetchCategories();
-    fetchVideos();
-    setupEventListeners();
-    setInterval(fetchVideos, 60000); // Auto refresh
-});
+// Run immediately (Script is at bottom of body, so DOM is ready)
+fetchCategories();
+fetchVideos();
+setupEventListeners();
+setInterval(fetchVideos, 60000); // Auto refresh
 
 // Detect if we are running on GitHub Pages or Local
 const isGitHub = window.location.hostname.includes('github.io');
@@ -42,16 +41,39 @@ async function fetchCategories() {
 }
 
 async function fetchVideos() {
+    // 1. Try to load from LocalStorage (Instant Render)
+    const cachedData = localStorage.getItem('cachedVideos');
+    if (cachedData) {
+        try {
+            allVideos = JSON.parse(cachedData);
+            updateHero();
+            renderVideos();
+            console.log("Loaded from cache (Instant!)");
+        } catch (e) {
+            console.error("Cache corrupted", e);
+        }
+    }
+
     try {
+        // 2. Fetch Fresh Data (Background Update)
         const response = await fetch(DATA_SOURCE);
         if (!response.ok) throw new Error("Network response was not ok");
-        allVideos = await response.json();
-        updateHero();
-        renderVideos();
+        const videos = await response.json();
+
+        // 3. Update if changed
+        if (JSON.stringify(videos) !== cachedData) {
+            allVideos = videos;
+            localStorage.setItem('cachedVideos', JSON.stringify(videos));
+            updateHero();
+            renderVideos();
+            console.log("Updated from server");
+        }
     } catch (e) {
         console.error("Error fetching videos:", e);
         const grid = document.getElementById('videoGrid');
-        if (grid) grid.innerHTML = '<div class="col-span-full py-20 text-center text-red-500 font-bold">Erro ao carregar vídeos (Mode: ' + (isGitHub ? 'Static' : 'Local') + ').</div>';
+        if (grid && !allVideos.length) {
+            grid.innerHTML = '<div class="col-span-full py-20 text-center text-red-500 font-bold">Erro ao carregar vídeos (Mode: ' + (isGitHub ? 'Static' : 'Local') + ').</div>';
+        }
     }
 }
 
