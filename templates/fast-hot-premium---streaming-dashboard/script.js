@@ -5,11 +5,12 @@ let favoriteIds = JSON.parse(localStorage.getItem('fasthot_favorites') || '[]');
 let currentPage = 1;
 const itemsPerPage = 20;
 
-// Run immediately (Script is at bottom of body, so DOM is ready)
-fetchCategories();
-fetchVideos();
-setupEventListeners();
-setInterval(fetchVideos, 60000); // Auto refresh
+document.addEventListener('DOMContentLoaded', () => {
+    fetchCategories();
+    fetchVideos();
+    setupEventListeners();
+    setInterval(fetchVideos, 60000); // Auto refresh
+});
 
 // Detect if we are running on GitHub Pages or Local
 const isGitHub = window.location.hostname.includes('github.io');
