@@ -93,6 +93,14 @@ async def main():
                 "upload_date": str(message.date)
             }
             
+            # Log unknown categories for future improvements
+            if entry["category"] == "Outros":
+                try:
+                    with open("uncategorized.log", "a", encoding="utf-8") as log_file:
+                        log_file.write(f"{title}\n")
+                except Exception as e:
+                    print(f"⚠️ Failed to log uncategorized video: {e}")
+            
             videos.insert(0, entry)
             print(f"➕ Added: {title}")
             new_count += 1

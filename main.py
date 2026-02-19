@@ -284,6 +284,14 @@ async def video_handler_func(client: Client, message: Message):
             # AUTO-DETECT Logic
             if category == "AUTO":
                 category = detect_category(title)
+                
+                # Log unknown categories
+                if category == "Outros":
+                    try:
+                        with open("uncategorized.log", "a", encoding="utf-8") as log_file:
+                            log_file.write(f"{title}\n")
+                    except Exception as e:
+                        print(f"⚠️ Failed to Log: {e}")
             
             video_entry = {
                 "id": str(forwarded_msg.id),
