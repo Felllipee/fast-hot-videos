@@ -232,9 +232,8 @@ function renderCard(video, container, isShort) {
     const isFav = favoriteIds.includes(vId);
 
     const card = document.createElement('div');
-    const streamUrl = `${API_BASE}/stream/${vId}`;
-    // USER REQUEST: Live Preview (Video autoplays on hover) - RESTORED
-    const thumbHtml = `<video src="${streamUrl}" class="w-full h-full object-cover brightness-75 group-hover:brightness-100 transition duration-700 group-hover:scale-110" muted loop playsinline preload="metadata" onmouseover="this.play()" onmouseout="this.pause();this.currentTime=0;"></video>`;
+    // Using img tag instead of video for better performance and to avoid bot overload
+    const thumbHtml = `<img src="${thumbUrl}" class="w-full h-full object-cover transition duration-700 group-hover:scale-110" loading="lazy">`;
 
     if (isShort) {
         card.className = 'group relative aspect-[9/16] bg-[#0f0f12] rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.05] hover:z-10 border border-white/5 hover:border-red-600/50';

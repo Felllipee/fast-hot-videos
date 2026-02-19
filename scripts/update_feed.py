@@ -23,6 +23,8 @@ def load_videos():
             return []
 
 def save_videos(videos):
+    # Ensure directory exists
+    os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(videos, f, indent=4, ensure_ascii=False)
 
@@ -50,12 +52,19 @@ async def main():
         print(f"📂 Loaded {len(videos)} existing videos.")
         
         new_count = 0
-        bin_channel = Config.BIN_CHANNEL
+        # Validate BIN_CHANNEL
+        try:
+            bin_channel = int(str(Config.BIN_CHANNEL).replace(" ", "").strip())
+            print(f"ℹ️ BIN_CHANNEL Type: {type(bin_channel)}")
+            print(f"ℹ️ BIN_CHANNEL validation: Is Negative? {bin_channel < 0}, Is Zero? {bin_channel == 0}")
+        except Exception as e:
+            print(f"❌ Error parsing BIN_CHANNEL: {e}")
+            return
+
+        print(f"🔄 Scanning Channel ID (Sanitized): {bin_channel}...")
         
-        print(f"🔄 Scanning Channel ID: {bin_channel}...")
-        
-        # Fetch last 100 messages to check for new ones
-        async for message in app.get_chat_history(bin_channel, limit=100):
+        # Fetch last 1000 messages (Increased limit)
+        async for message in app.get_chat_history(bin_channel, limit=1000):
             if not message.video:
                 continue
                 
