@@ -135,11 +135,15 @@ def save_videos(videos):
 
 def save_video_entry(entry):
     videos = load_videos()
+    v_id = entry.get('id')
+    v_unique_id = entry.get('file_unique_id')
     # Check if video already exists by file_unique_id to avoid duplicates
-    if any(v.get('file_unique_id') == entry.get('file_unique_id') for v in videos):
+    if any(v.get('file_unique_id') == v_unique_id for v in videos):
+        logger.info(f"Save: Skipping duplicate video {v_unique_id}")
         return
     videos.insert(0, entry)
     save_videos(videos)
+    logger.info(f"Save: Successfully saved video {v_id} to database")
 
 def delete_video_by_id(video_id):
     videos = load_videos()
@@ -277,9 +281,10 @@ async def stream_video_from_telegram(identifier: str, file_id: str, start: int, 
                 logger.error(f"Stream chunk error: {e}")
 
         # Add appropriate headers for caching and type
-        headers["Cache-Control"] = "no-cache" # No cache for stream, fresh pieces only
+        headers["Cache-Control"] = "no-cache"
         headers["X-Content-Type-Options"] = "nosniff"
         headers["Accept-Ranges"] = "bytes"
+        headers["Connection"] = "keep-alive"
 
         return Response(stream_chunks(), status=status_code, headers=headers)
 
@@ -416,6 +421,7 @@ async def video_handler_func(client: Client, message: Message):
             return
 
         # NORMAL MODE
+        logger.info(f"Bot: Video received from {user_id} (ID: {forwarded_msg.id}). Pending post.")
         stream_link = f"{BASE_URL}/stream/{forwarded_msg.id}"
         await message.reply_text(
             f"✅ **Vídeo Recebido!**\n\n📁 **Arquivo:** `{message.video.file_name or 'Sem Nome'}`\n💾 **Tamanho:** {message.video.file_size} bytes\n\n🌐 **Site (Mais Rápido):** {BASE_URL}\n📡 **Site (GitHub):** {GITHUB_URL}\n\n⚡️ *Dica: Use o site da VM para reprodução instantânea!*",
@@ -426,7 +432,7 @@ async def video_handler_func(client: Client, message: Message):
             ])
         )
     except Exception as e:
-        logger.error(f"Error handling video: {e}")
+        logger.error(f"Bot: Error handling video from {user_id}: {e}")
         await message.reply_text("Erro ao processar vídeo.")
 
 async def post_callback_func(client: Client, callback_query: CallbackQuery):

@@ -278,53 +278,25 @@ function addPageBtn(i, container) {
     container.appendChild(btn);
 }
 
-// Lazy Loading Observer for Videos with Throttling
-const videoObserver = new IntersectionObserver((entries, observer) => {
-    entries.forEach(entry => {
-        if (entry.isIntersecting) {
-            const video = entry.target;
-            // Only switch to metadata preload when visible
-            if (video.getAttribute('preload') === 'none') {
-                video.setAttribute('preload', 'metadata');
-                // Optional: Try to load a bit to force first frame
-                // video.load(); 
-            }
-            observer.unobserve(video);
-        }
-    });
-}, {
-    rootMargin: '50px 0px', // Load slightly before view
-    threshold: 0.1
-});
-
-function lazyLoadVideo(videoElement) {
-    videoObserver.observe(videoElement);
-}
 
 function renderCard(video, container, isShort) {
     const vId = video.id || video.file_id;
     const isFav = favoriteIds.includes(vId);
-    // User requested "video's own image" (live preview). 
-    // We use streamUrl for src. BUT we must lazy load to prevent server crash.
-    const streamUrl = `${API_BASE}/stream/${vId}`;
+
+    // Thumbnail: Use the proxy_thumb endpoint
+    // Using video.id (message_id) is prioritized
+    const thumbUrl = `${API_BASE}/thumb/${video.id || vId}`;
 
     const card = document.createElement('div');
 
-    // We use <video> with preload="none" initially.
-    // The IntersectionObserver below will switch it to "metadata" when in view.
-    // This staggers the load and prevents the bot from being overwhelmed.
     const thumbHtml = `
-        <video 
-            src="${streamUrl}" 
-            class="w-full h-full object-cover brightness-75 group-hover:brightness-100 transition duration-700 group-hover:scale-110 lazy-video" 
-            muted 
-            loop 
-            playsinline 
-            preload="none" 
-            poster="${API_BASE}/thumb/${video.id}"
-            onmouseover="this.play()" 
-            onmouseout="this.pause();this.currentTime=0;"
-        ></video>
+        <img 
+            src="${thumbUrl}" 
+            alt="${video.title}"
+            class="w-full h-full object-cover brightness-75 group-hover:brightness-100 transition duration-700 group-hover:scale-110"
+            loading="lazy"
+            onerror="this.src='static/img/no_thumb.png'"
+        >
     `;
 
     if (isShort) {
