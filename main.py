@@ -231,7 +231,7 @@ async def stream_video_from_telegram(identifier: str, file_id: str, start: int, 
     Streams a video file from Telegram using Pyrogram's stream_media.
     Optimized for efficient chunking and includes error handling.
     """
-    CHUNK_SIZE = 1024 * 1024 # 1MB Pyrogram Chunks
+    CHUNK_SIZE = 256 * 1024 # 256KB chunks for better responsiveness
     
     try:
         offset_chunks = start // CHUNK_SIZE
