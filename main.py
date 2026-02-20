@@ -63,7 +63,7 @@ def get_local_ip():
         return "127.0.0.1"
 
 LOCAL_IP = "35.192.109.211" # Corrected Public IP of the Google Cloud VM
-BASE_URL = Config.BASE_URL or f"http://{LOCAL_IP}:{Config.PORT}"
+BASE_URL = Config.BASE_URL # Priority to .env, which is now corrected
 GITHUB_URL = "https://felllipee.github.io/fast-hot-videos/"
 
 # Universal Categories (Sync between Bot and Web)
@@ -242,6 +242,11 @@ async def stream_video_from_telegram(identifier: str, file_id: str, start: int, 
             first = True
             bytes_sent = 0
             to_send = (end - start + 1) if end is not None else None
+            
+            # For very small videos (like 2s), ensure we don't get stuck in chunking
+            # If we know the total size and it's small, we could potentially yield everything immediately,
+            # but Pyrogram's stream_media is already chunked. 
+            # We just need to make sure we yield chunks as they come.
             
             try:
                 async for chunk in stream:
