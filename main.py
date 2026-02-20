@@ -37,13 +37,10 @@ app_web = Quart(__name__)
 app_web = cors(app_web, allow_origin="*")
 
 # Constants
-DATA_FILE = "data/videos.json"
-if not os.path.exists("data"):
-    os.makedirs("data")
-
-# Assuming BASE_DIR is defined elsewhere or intended to be defined.
-# For this change, we'll define it as the current working directory to ensure syntactic correctness.
-BASE_DIR = os.path.dirname(os.path.abspath(__file__)) # Added for syntactic correctness based on instruction
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_FILE = os.path.join(BASE_DIR, "data", "videos.json")
+if not os.path.exists(os.path.join(BASE_DIR, "data")):
+    os.makedirs(os.path.join(BASE_DIR, "data"))
 
 THUMBS_DIR = os.path.join(BASE_DIR, "data", "thumbnails")
 os.makedirs(THUMBS_DIR, exist_ok=True)
@@ -945,7 +942,7 @@ async def start_app():
 
     # Start Background Tasks
     # asyncio.create_task(prefetch_thumbnails()) # Disabled per user request
-    start_serveo_thread() # Enabled: run with --serveo to use
+    # start_serveo_thread() # Disabled as it can cause conflicts
     
     try:
         await asyncio.gather(server.serve(), idle())
@@ -954,7 +951,7 @@ async def start_app():
 
 
 # --- ANALYTICS SYSTEM (Real & Persistent) ---
-STATS_FILE = "data/stats.json"
+STATS_FILE = os.path.join(BASE_DIR, "data", "stats.json")
 
 # Initialize or Load Stats
 if os.path.exists(STATS_FILE):
