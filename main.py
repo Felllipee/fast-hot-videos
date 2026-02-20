@@ -281,8 +281,9 @@ async def stream_video_from_telegram(identifier: str, file_id: str, start: int, 
                 logger.error(f"Stream chunk error: {e}")
 
         # Add appropriate headers for caching and type
-        headers["Cache-Control"] = "public, max-age=31536000"
-        headers["Connection"] = "keep-alive"
+        headers["Cache-Control"] = "no-cache" # No cache for stream, fresh pieces only
+        headers["X-Content-Type-Options"] = "nosniff"
+        headers["Accept-Ranges"] = "bytes"
 
         return Response(stream_chunks(), status=status_code, headers=headers)
 
@@ -421,7 +422,7 @@ async def video_handler_func(client: Client, message: Message):
         # NORMAL MODE
         stream_link = f"{BASE_URL}/stream/{forwarded_msg.id}"
         await message.reply_text(
-            f"✅ **Vídeo Recebido!**\n\n📁 **Arquivo:** `{message.video.file_name or 'Sem Nome'}`\n💾 **Tamanho:** {message.video.file_size} bytes\n\n🌐 **Site:** {GITHUB_URL}",
+            f"✅ **Vídeo Recebido!**\n\n📁 **Arquivo:** `{message.video.file_name or 'Sem Nome'}`\n💾 **Tamanho:** {message.video.file_size} bytes\n\n🌐 **Site (Mais Rápido):** {BASE_URL}\n📡 **Site (GitHub):** {GITHUB_URL}\n\n⚡️ *Dica: Use o site da VM para reprodução instantânea!*",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("▶️ Stream", url=stream_link), InlineKeyboardButton("⬇️ Download", url=stream_link)],
                 [InlineKeyboardButton("📤 Postar no Site", callback_data=f"post_{forwarded_msg.id}")],
@@ -475,7 +476,7 @@ async def text_handler_func(client: Client, message: Message):
         await list_videos_func(client, user_id)
         return
     elif message.text == "🌐 Ver Site":
-        await message.reply_text(f"🌐 Ver pelo Site: {GITHUB_URL}\n\n📡 Link Direto (VM): {BASE_URL}")
+        await message.reply_text(f"🚀 **Site (Velocidade Máxima):** {BASE_URL}\n\n📡 **Site (GitHub):** {GITHUB_URL}\n\n⚠️ *Nota: O link da VM é mais rápido no carregamento dos vídeos.*")
         return
     elif message.text == "📦 Em Massa":
         await menu_handler(client, message)

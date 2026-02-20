@@ -12,10 +12,10 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(fetchVideos, 60000); // Auto refresh
 });
 
-// Detect if we are running on GitHub Pages or Local
+// Detect environment and setup API base
 const isGitHub = window.location.hostname.includes('github.io');
-const API_BASE = isGitHub ? 'http://35.192.109.211:8080' : ''; // Points to Google Cloud VM
-const DATA_SOURCE = isGitHub ? 'http://35.192.109.211:8080/api/videos' : '/api/videos';
+const API_BASE = isGitHub ? 'http://35.192.109.211:8080' : window.location.origin;
+const DATA_SOURCE = `${API_BASE}/api/videos`;
 
 async function fetchCategories() {
     try {
