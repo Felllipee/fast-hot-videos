@@ -12,6 +12,7 @@ except RuntimeError:
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
+import time
 import json
 import os
 import re
@@ -279,7 +280,7 @@ async def stream_video_from_telegram(identifier: str, file_id: str, start: int, 
         headers["Cache-Control"] = "public, max-age=31536000"
         headers["Connection"] = "keep-alive"
 
-        return Response(stream_chunks(), status_code=status_code, headers=headers)
+        return Response(stream_chunks(), status=status_code, headers=headers)
 
     except Exception as e:
         logger.error(f"Error streaming video {identifier}: {e}")
@@ -983,17 +984,126 @@ async def start_app():
 
     # Start Background Tasks
     # asyncio.create_task(prefetch_thumbnails()) # Disabled per user request
-    # start_serveo_thread() # Disabled per user request (returning to local)
+    start_serveo_thread() # Enabled: run with --serveo to use
     
     try:
         await asyncio.gather(server.serve(), idle())
     finally:
         await bot.stop()
 
+
+# --- ANALYTICS SYSTEM (Real & Persistent) ---
+STATS_FILE = "data/stats.json"
+
+# Initialize or Load Stats
+if os.path.exists(STATS_FILE):
+    try:
+        with open(STATS_FILE, "r") as f:
+            analytics_data = json.load(f)
+    except:
+        analytics_data = {"total_requests": 0, "daily_visits": 0, "history": [], "start_time": time.time()}
+else:
+    analytics_data = {
+        "total_requests": 0, 
+        "daily_visits": 0, 
+        "history": [], # List of {"timestamp": ts, "count": int}
+        "start_time": time.time()
+    }
+
+# Ensure volatile fields are reset/init
+analytics_data["active_users"] = {} 
+if "history" not in analytics_data: analytics_data["history"] = []
+if "start_time" not in analytics_data: analytics_data["start_time"] = time.time()
+
+def save_analytics():
+    # Save only persistent data (exclude active_users which is volatile)
+    data_to_save = {
+        "total_requests": analytics_data["total_requests"],
+        "daily_visits": analytics_data["daily_visits"],
+        "history": analytics_data["history"][-100:], # Keep last 100 entries
+        "start_time": analytics_data["start_time"]
+    }
+    try:
+        with open(STATS_FILE, "w") as f:
+            json.dump(data_to_save, f)
+    except Exception as e:
+        logger.error(f"Failed to save stats: {e}")
+
+@app_web.before_request
+def track_request():
+    # Ignore static, stats, admin dashboard, and favicon
+    if (request.path.startswith("/static") or 
+        request.path.startswith("/api/stats") or 
+        request.path.startswith("/admin") or 
+        request.path == "/favicon.ico"):
+        return
+        
+    # Track Request
+    analytics_data["total_requests"] += 1
+    
+    # Track Active Users (IP based)
+    ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    analytics_data["active_users"][ip] = time.time()
+    
+    # History Snapshot (Simple: Add to current bucket or create new)
+    now = time.time()
+    if not analytics_data["history"] or (now - analytics_data["history"][-1]["timestamp"] > 600): # New bucket every 10 mins
+        analytics_data["history"].append({"timestamp": now, "count": 1, "active": len(analytics_data["active_users"])})
+    else:
+        analytics_data["history"][-1]["count"] += 1
+        analytics_data["history"][-1]["active"] = len(analytics_data["active_users"])
+
+    # Periodic Save (naive implementation)
+    if analytics_data["total_requests"] % 10 == 0:
+        save_analytics()
+
+@app_web.route("/api/track", methods=["POST", "OPTIONS"])
+async def external_track():
+    # Allow CORS for this endpoint so GitHub Pages can call it
+    if request.method == "OPTIONS":
+        headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST",
+            "Access-Control-Allow-Headers": "Content-Type"
+        }
+        return Response("", status=204, headers=headers)
+
+    # Record the visit
+    analytics_data["total_requests"] += 1
+    
+    # Return CORS headers
+    headers = {"Access-Control-Allow-Origin": "*"}
+    return jsonify({"status": "tracked"}), 200, headers
+
+@app_web.route("/api/stats")
+async def get_stats():
+    now = time.time()
+    uptime = int(now - analytics_data["start_time"])
+    
+    # Cleanup active users
+    active_ips = [ip for ip, ts in analytics_data["active_users"].items() if now - ts < 300]
+    analytics_data["active_users"] = {ip: analytics_data["active_users"][ip] for ip in active_ips}
+    
+    return jsonify({
+        "active_users": len(active_ips),
+        "total_requests": analytics_data["total_requests"],
+        "uptime_seconds": uptime,
+        "history": analytics_data["history"][-20:], # Send last 20 points for chart
+        "bandwidth_estimate": f"{analytics_data['total_requests'] * 1.5:.1f} MB"
+    })
+
+@app_web.route("/admin/dashboard")
+async def admin_dashboard():
+    return await render_template("dashboard.html")
+
 if __name__ == "__main__":
     try:
+        # Load stats on startup
+        if not os.path.exists("data"): os.makedirs("data")
+            
         loop.run_until_complete(start_app())
     except KeyboardInterrupt:
-        pass
+        save_analytics() # Save on exit
     except Exception as e:
         logger.error(f"Fatal error: {e}")
+        save_analytics()

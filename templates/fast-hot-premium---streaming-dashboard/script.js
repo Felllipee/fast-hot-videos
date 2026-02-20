@@ -14,8 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Detect if we are running on GitHub Pages or Local
 const isGitHub = window.location.hostname.includes('github.io');
-const API_BASE = isGitHub ? 'http://127.0.0.1:8080' : ''; // Fallback to local server for streaming on GitHub
-const DATA_SOURCE = isGitHub ? '../../data/videos.json' : '/api/videos';
+const API_BASE = isGitHub ? 'http://35.238.69.53:8080' : ''; // Points to Google Cloud VM
+const DATA_SOURCE = isGitHub ? 'http://35.238.69.53:8080/api/videos' : '/api/videos';
 
 async function fetchCategories() {
     try {
@@ -135,13 +135,38 @@ function filterByCategory(category) {
     currentCategory = category;
     currentPage = 1; // Reset to page 1
     renderVideos();
+    updateCategoryButtons();
+}
 
-    // Update button styles
+function toggleShowOnlyFavorites() {
+    currentCategory = 'Favoritos';
+    currentPage = 1;
+    renderVideos();
+    updateCategoryButtons();
+}
+
+function updateCategoryButtons() {
+    // Update category container buttons
     const buttons = document.querySelectorAll('#categoryContainer button');
     buttons.forEach(btn => {
         const cat = btn.textContent;
-        btn.className = getCategoryBtnClass(cat === category);
+        // If current is Favoritos, no category btn is active unless we explicitly add a "Favoritos" btn there (we don't)
+        // Check if button text matches currentCategory
+        const isActive = cat === currentCategory;
+        btn.className = getCategoryBtnClass(isActive);
     });
+
+    // Update Header Favorites Button State
+    const navFavBtn = document.getElementById('navFavorites');
+    if (navFavBtn) {
+        if (currentCategory === 'Favoritos') {
+            navFavBtn.classList.remove('text-gray-400');
+            navFavBtn.classList.add('text-red-500');
+        } else {
+            navFavBtn.classList.add('text-gray-400');
+            navFavBtn.classList.remove('text-red-500');
+        }
+    }
 }
 
 function renderVideos() {
@@ -160,6 +185,11 @@ function renderVideos() {
     }
 
     const filtered = allVideos.filter(v => {
+        if (currentCategory === 'Favoritos') {
+            const vId = v.id || v.file_id;
+            const matchesSearch = (v.title || "").toLowerCase().includes(searchQuery);
+            return favoriteIds.includes(vId) && matchesSearch;
+        }
         const matchesCategory = currentCategory === 'Tudo' || v.category === currentCategory;
         const matchesSearch = (v.title || "").toLowerCase().includes(searchQuery) || (v.category || "").toLowerCase().includes(searchQuery);
         return matchesCategory && matchesSearch;
@@ -408,3 +438,39 @@ function formatSize(bytes) {
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
     return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + ['B', 'KB', 'MB', 'GB', 'TB'][i];
 }
+
+// --- Analytics Tracking ---
+(function () {
+    // URL do Backend (Serveo/Localhost)
+    // O usuário deve atualizar isso se o link mudar, ou usar um domínio fixo.
+    // Tenta detectar se está rodando localmente ou no GitHub
+    let backendUrl = "http://35.238.69.53:8080";
+
+    // Se estiver no GitHub, pode precisar configurar a URL manualmente ou usar a última conhecida
+    // Exemplo: const PUBLIC_URL = "https://seu-link.lhr.life";
+
+    // Simple pixel tracking
+    try {
+        // Tenta usar a URL atual se for compatível, senão usa o fallback
+        if (window.location.hostname.includes("lhr.life")) {
+            backendUrl = window.location.origin;
+        }
+
+        // Se estiver no GitHub, precisamos da URL pública do backend
+        if (window.location.hostname.includes("github.io")) {
+            // TODO: O usuário precisa definir a URL pública aqui quando ela mudar
+            // backendUrl = "https://URL-DO-SERVEO.lhr.life"; 
+            console.log("Analytics: Configure a URL do backend no script.js para rastrear do GitHub.");
+            return;
+        }
+
+        fetch(backendUrl + "/api/track", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ page: window.location.pathname })
+        }).catch(e => console.log("Analytics erro:", e));
+
+    } catch (e) {
+        console.log("Analytics init erro:", e);
+    }
+})();
