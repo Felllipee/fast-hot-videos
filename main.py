@@ -62,8 +62,9 @@ def get_local_ip():
     except Exception:
         return "127.0.0.1"
 
-LOCAL_IP = get_local_ip()
+LOCAL_IP = "35.238.69.53" # Public IP of the Google Cloud VM
 BASE_URL = Config.BASE_URL or f"http://{LOCAL_IP}:{Config.PORT}"
+GITHUB_URL = "https://felllipee.github.io/fast-hot-videos/"
 
 # Universal Categories (Sync between Bot and Web)
 CATEGORIES = sorted([
@@ -411,7 +412,7 @@ async def video_handler_func(client: Client, message: Message):
         # NORMAL MODE
         stream_link = f"{BASE_URL}/stream/{forwarded_msg.id}"
         await message.reply_text(
-            f"✅ **Vídeo Recebido!**\n\n📁 **Arquivo:** `{message.video.file_name or 'Sem Nome'}`\n💾 **Tamanho:** {message.video.file_size} bytes",
+            f"✅ **Vídeo Recebido!**\n\n📁 **Arquivo:** `{message.video.file_name or 'Sem Nome'}`\n💾 **Tamanho:** {message.video.file_size} bytes\n\n🌐 **Site:** {GITHUB_URL}",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("▶️ Stream", url=stream_link), InlineKeyboardButton("⬇️ Download", url=stream_link)],
                 [InlineKeyboardButton("📤 Postar no Site", callback_data=f"post_{forwarded_msg.id}")],
@@ -465,7 +466,7 @@ async def text_handler_func(client: Client, message: Message):
         await list_videos_func(client, user_id)
         return
     elif message.text == "🌐 Ver Site":
-        await message.reply_text(f"🌐 Acesse o site aqui: {BASE_URL}")
+        await message.reply_text(f"🌐 Ver pelo Site: {GITHUB_URL}\n\n📡 Link Direto (VM): {BASE_URL}")
         return
     elif message.text == "📦 Em Massa":
         await menu_handler(client, message)
