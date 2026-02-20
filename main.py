@@ -62,8 +62,17 @@ def get_local_ip():
     except Exception:
         return "127.0.0.1"
 
-LOCAL_IP = "35.192.109.211" # Corrected Public IP of the Google Cloud VM
-BASE_URL = Config.BASE_URL # Priority to .env, which is now corrected
+PUBLIC_IP_VM = "35.192.109.211" 
+
+def get_base_url():
+    # Priority 1: .env BASE_URL (if it's not the wrong internal IP)
+    env_url = Config.BASE_URL
+    if env_url and "192.168" not in env_url and "127.0.0.1" not in env_url:
+        return env_url
+    # Priority 2: Hardcoded Public IP (Fail-safe)
+    return f"http://{PUBLIC_IP_VM}:{Config.PORT}"
+
+BASE_URL = get_base_url()
 GITHUB_URL = "https://felllipee.github.io/fast-hot-videos/"
 
 # Universal Categories (Sync between Bot and Web)
@@ -198,7 +207,7 @@ async def prefetch_thumbnails():
                              await bot.download_media(msg.video.thumbs[0].file_id, file_name=thumb_path)
                     
                     if os.path.exists(thumb_path):
-                        logger.info(f"Prefetched thumb for {vid_id}")
+                        logger.info(f"App loop started. Serving on {PUBLIC_IP_VM}")
                     
                     # Responsive sleep
                     try:
@@ -964,7 +973,7 @@ async def start_app():
     config = uvicorn.Config(app_web, host="0.0.0.0", port=Config.PORT, log_level="info", loop="asyncio")
     server = uvicorn.Server(config)
     
-    logger.info(f"Local IP: {LOCAL_IP}")
+    logger.info(f"Local IP: {PUBLIC_IP_VM}")
     print(f"Site Disponivel em: {BASE_URL}")
     logger.info(f"Site available at: {BASE_URL}")
 
