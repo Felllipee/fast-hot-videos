@@ -680,18 +680,6 @@ async def api_categories():
     active_categories = [cat for cat in CATEGORIES if cat == "Tudo" or cat in used_cats]
     return jsonify(active_categories)
 
-@app_web.route("/thumb/<video_id>")
-async def get_thumb(video_id):
-    # Sanitize video_id to prevent directory traversal
-    if not video_id.isdigit(): return "Invalid ID", 400
-    
-    thumb_path = os.path.join(THUMBS_DIR, f"{video_id}.jpg")
-    if os.path.exists(thumb_path):
-        from quart import send_file
-        return await send_file(thumb_path)
-    
-    # Return placeholder if not found
-    return await send_from_directory(os.path.join("static", "img"), "no_thumb.png")
 
 @app_web.route("/stream/<identifier>")
 async def stream_video(identifier):
@@ -807,39 +795,42 @@ async def static_files(filename):
 @app_web.route("/thumb/<identifier>")
 async def proxy_thumb(identifier):
     if not identifier or identifier in ("None", "null"):
-        return redirect("/static/img/no_thumb.png")
+        return await send_from_directory(os.path.join("static", "img"), "no_thumb.png")
     
-    # Check if we have it locally first
-    thumb_path = os.path.join(THUMBS_DIR, f"{identifier}.jpg")
+    # Check if we have it locally first (cached)
+    # Using a hash of the file_id for non-numeric identifiers to avoid long filenames or invalid chars
+    safe_name = identifier if identifier.isdigit() else str(hash(identifier))
+    thumb_path = os.path.join(THUMBS_DIR, f"{safe_name}.jpg")
+    
     if os.path.exists(thumb_path):
         from quart import send_file
         return await send_file(thumb_path)
 
-    # SAFE MODE with limits: Try to get the thumbnail from Telegram
-    if bot and bot.is_connected and identifier.isdigit():
+    # If it's not local, try to get it from Telegram
+    if bot and bot.is_connected:
         try:
-            # Acquire semaphore to execute download (Wait if too many active downloads)
             async with thumb_semaphore:
-                # We use get_messages which is lighter
-                msg = await bot.get_messages(Config.BIN_CHANNEL, int(identifier))
-                if msg and msg.video and msg.video.thumbs:
-                    # Download the thumbnail
-                    await bot.download_media(
-                        msg.video.thumbs[0].file_id,
-                        file_name=thumb_path
-                    )
+                file_id_to_download = None
+                
+                if identifier.isdigit():
+                    # It's a message ID
+                    msg = await bot.get_messages(Config.BIN_CHANNEL, int(identifier))
+                    if msg and msg.video and msg.video.thumbs:
+                        file_id_to_download = msg.video.thumbs[0].file_id
+                else:
+                    # It looks like a file_id itself
+                    file_id_to_download = identifier
+
+                if file_id_to_download:
+                    await bot.download_media(file_id_to_download, file_name=thumb_path)
                     if os.path.exists(thumb_path):
                         from quart import send_file
                         return await send_file(thumb_path)
-                else:
-                     # If no thumbnail or message not found, fallback
-                     pass
         except Exception as e:
-            logger.warning(f"Failed to fetch thumb {identifier} from TG: {e}")
-            # Do NOT log stack trace to keep logs clean
+            logger.warning(f"Failed to fetch thumb {identifier}: {e}")
     
-    # If all fails, return default image to avoid crashing or banning
-    return redirect("/static/img/no_thumb.png")
+    # Fallback to default
+    return await send_from_directory(os.path.join("static", "img"), "no_thumb.png")
 
 @app_web.route("/health")
 async def health_check():
