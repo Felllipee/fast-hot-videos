@@ -230,17 +230,21 @@ async def prefetch_thumbnails():
     logger.info("Prefetcher stopped.")
 
 # --- STREAMING UTILITIES ---
-async def stream_video_from_telegram(identifier: str, file_id: str, start: int, end: int | None, status_code: int, headers: dict):
+async def stream_video_from_telegram(identifier: str, file_id: str, file_size: int, start: int, end: int | None, status_code: int, headers: dict):
     """
     Streams a video file from Telegram using Pyrogram's stream_media.
-    Optimized for efficient chunking and includes error handling.
+    Correctly calculates offsets based on Telegram's chunking logic.
     """
-    PYRO_CHUNK_SIZE = 512 * 1024 # 512KB chunks for lower memory spikes on 1GB RAM VMs
+    # Telegram's chunk size is 1MB for files >= 10MB, else 128KB
+    # stream_media's "offset" parameter is the chunk INDEX, not bytes.
+    TELEGRAM_CHUNK_SIZE = 1024 * 1024 if file_size >= 10 * 1024 * 1024 else 128 * 1024
     
     try:
-        offset_chunks = start // PYRO_CHUNK_SIZE
-        start_in_chunk = start % PYRO_CHUNK_SIZE
+        offset_chunks = start // TELEGRAM_CHUNK_SIZE
+        start_in_chunk = start % TELEGRAM_CHUNK_SIZE
         
+        logger.info(f"Stream: {identifier} | Size: {file_size} | Offset: {offset_chunks} chk | Skip: {start_in_chunk}b | Range: {start}-{end}")
+
         stream = bot.stream_media(
             file_id,
             offset=offset_chunks,
@@ -252,14 +256,8 @@ async def stream_video_from_telegram(identifier: str, file_id: str, start: int, 
             bytes_sent = 0
             to_send = (end - start + 1) if end is not None else None
             
-            # For very small videos (like 2s), ensure we don't get stuck in chunking
-            # If we know the total size and it's small, we could potentially yield everything immediately,
-            # but Pyrogram's stream_media is already chunked. 
-            # We just need to make sure we yield chunks as they come.
-            
             try:
                 async for chunk in stream:
-                    # Adjust first chunk for byte offset
                     if first:
                         if start_in_chunk > 0:
                             chunk = chunk[start_in_chunk:]
@@ -267,7 +265,6 @@ async def stream_video_from_telegram(identifier: str, file_id: str, start: int, 
                     
                     chunk_len = len(chunk)
                     
-                    # Truncate last chunk if we have a limit
                     if to_send is not None:
                         if bytes_sent + chunk_len > to_send:
                             chunk = chunk[:to_send - bytes_sent]
@@ -278,19 +275,22 @@ async def stream_video_from_telegram(identifier: str, file_id: str, start: int, 
                     bytes_sent += chunk_len
                     
             except Exception as e:
-                logger.error(f"Stream chunk error: {e}")
+                # Silencing broken pipe errors as they are common when user stops video
+                if "Broken pipe" not in str(e):
+                    logger.error(f"Stream chunk error {identifier}: {e}")
 
         # Add appropriate headers for caching and type
         headers["Cache-Control"] = "no-cache"
         headers["X-Content-Type-Options"] = "nosniff"
         headers["Accept-Ranges"] = "bytes"
         headers["Connection"] = "keep-alive"
+        headers["X-Accel-Buffering"] = "no" # Essential for streaming through proxies/Nginx
 
         return Response(stream_chunks(), status=status_code, headers=headers)
 
     except Exception as e:
-        logger.error(f"Error streaming video {identifier}: {e}")
-        return "Error during streaming", 500
+        logger.error(f"Error initializing stream {identifier}: {e}")
+        return "Error during streaming initialization", 500
 
 # --- BOT HANDLERS ---
 
@@ -754,7 +754,7 @@ async def stream_video(identifier):
         if range_header:
             headers["Content-Range"] = f"bytes {start}-{end}/{file_size}"
             
-        return await stream_video_from_telegram(identifier, file_id, start, end, status_code, headers)
+        return await stream_video_from_telegram(identifier, file_id, file_size, start, end, status_code, headers)
     except Exception as e:
         logger.error(f"Stream error: {e}")
         return str(e), 500

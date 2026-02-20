@@ -63,8 +63,9 @@ async function fetchVideos() {
 
         // 3. Update if changed
         if (JSON.stringify(videos) !== cachedData) {
-            allVideos = videos;
-            localStorage.setItem('cachedVideos', JSON.stringify(videos));
+            // Sort by ID to ensure newest is first
+            allVideos = videos.sort((a, b) => (parseInt(b.id) || 0) - (parseInt(a.id) || 0));
+            localStorage.setItem('cachedVideos', JSON.stringify(allVideos));
             updateHero();
             renderVideos();
             console.log("Updated from server");
