@@ -5,7 +5,15 @@ let favoriteIds = JSON.parse(localStorage.getItem('fasthot_favorites') || '[]');
 let currentPage = 1;
 const itemsPerPage = 20;
 
+const SCRIPT_VERSION = '10.0';
+
 document.addEventListener('DOMContentLoaded', () => {
+    // Force clear old cache if version mismatch
+    if (localStorage.getItem('fasthot_version') !== SCRIPT_VERSION) {
+        localStorage.clear();
+        localStorage.setItem('fasthot_version', SCRIPT_VERSION);
+    }
+
     fetchCategories();
     fetchVideos();
     setupEventListeners();

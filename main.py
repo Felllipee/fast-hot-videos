@@ -233,64 +233,71 @@ async def prefetch_thumbnails():
 async def stream_video_from_telegram(identifier: str, file_id: str, file_size: int, start: int, end: int | None, status_code: int, headers: dict):
     """
     Streams a video file from Telegram using Pyrogram's stream_media.
-    Correctly calculates offsets based on Telegram's chunking logic.
+    Uses 'universal skipping' by iterating and discarding bytes to ensure 100% offset accuracy.
     """
-    # Telegram's chunk size is 1MB for files >= 10MB, else 128KB
-    # stream_media's "offset" parameter is the chunk INDEX, not bytes.
-    TELEGRAM_CHUNK_SIZE = 1024 * 1024 if file_size >= 10 * 1024 * 1024 else 128 * 1024
-    
     try:
-        offset_chunks = start // TELEGRAM_CHUNK_SIZE
-        start_in_chunk = start % TELEGRAM_CHUNK_SIZE
-        
-        logger.info(f"Stream: {identifier} | Size: {file_size} | Offset: {offset_chunks} chk | Skip: {start_in_chunk}b | Range: {start}-{end}")
-
-        stream = bot.stream_media(
-            file_id,
-            offset=offset_chunks,
-            limit=0 
-        )
+        # Start streaming from the beginning (offset=0) 
+        # to guarantee we don't land on a wrong chunk boundary.
+        # For a 1GB RAM VM, skipping a few MBs in a loop is fast and safe.
+        stream = bot.stream_media(file_id, offset=0, limit=0)
         
         async def stream_chunks():
-            first = True
+            bytes_skipped = 0
             bytes_sent = 0
-            to_send = (end - start + 1) if end is not None else None
+            to_send = (end - start + 1) if end is not None else (file_size - start)
             
+            logger.info(f"Stream Start: {identifier} | Target Start: {start} | Limit: {to_send}")
+
             try:
                 async for chunk in stream:
-                    if first:
-                        if start_in_chunk > 0:
-                            chunk = chunk[start_in_chunk:]
-                        first = False
-                    
                     chunk_len = len(chunk)
                     
+                    # 1. Skip logic: If we haven't reached 'start' yet
+                    if bytes_skipped + chunk_len <= start:
+                        bytes_skipped += chunk_len
+                        continue
+                    
+                    # 2. Slice the first chunk that overlaps with our start point
+                    if bytes_skipped < start:
+                        overlap = start - bytes_skipped
+                        chunk = chunk[overlap:]
+                        chunk_len = len(chunk)
+                        bytes_skipped = start # Mark as skipped
+                    
+                    # 3. Truncate the chunk if it goes beyond 'end'
                     if to_send is not None:
                         if bytes_sent + chunk_len > to_send:
                             chunk = chunk[:to_send - bytes_sent]
-                            yield chunk
+                            if chunk:
+                                yield chunk
+                                bytes_sent += len(chunk)
                             break
                     
-                    yield chunk
-                    bytes_sent += chunk_len
-                    
-            except Exception as e:
-                # Silencing broken pipe errors as they are common when user stops video
-                if "Broken pipe" not in str(e):
-                    logger.error(f"Stream chunk error {identifier}: {e}")
+                    if chunk:
+                        yield chunk
+                        bytes_sent += chunk_len
+                        
+                logger.info(f"Stream End: {identifier} | Total Sent: {bytes_sent}")
 
-        # Add appropriate headers for caching and type
+            except Exception as e:
+                # Silencing broken pipe/connection errors when the user stops the video
+                if any(err in str(e) for err in ["Broken pipe", "ConnectionResetError", "32"]):
+                    pass 
+                else:
+                    logger.error(f"Stream Loop Error {identifier}: {e}")
+
+        # Final Headers
         headers["Cache-Control"] = "no-cache"
         headers["X-Content-Type-Options"] = "nosniff"
         headers["Accept-Ranges"] = "bytes"
         headers["Connection"] = "keep-alive"
-        headers["X-Accel-Buffering"] = "no" # Essential for streaming through proxies/Nginx
+        headers["X-Accel-Buffering"] = "no"
 
         return Response(stream_chunks(), status=status_code, headers=headers)
 
     except Exception as e:
         logger.error(f"Error initializing stream {identifier}: {e}")
-        return "Error during streaming initialization", 500
+        return "Error initializing stream", 500
 
 # --- BOT HANDLERS ---
 
