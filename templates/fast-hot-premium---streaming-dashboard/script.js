@@ -14,8 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Detect if we are running on GitHub Pages or Local
 const isGitHub = window.location.hostname.includes('github.io');
-const API_BASE = isGitHub ? 'http://35.238.69.53:8080' : ''; // Points to Google Cloud VM
-const DATA_SOURCE = isGitHub ? 'http://35.238.69.53:8080/api/videos' : '/api/videos';
+const API_BASE = isGitHub ? 'http://35.192.109.211:8080' : ''; // Points to Google Cloud VM
+const DATA_SOURCE = isGitHub ? 'http://35.192.109.211:8080/api/videos' : '/api/videos';
 
 async function fetchCategories() {
     try {
@@ -444,7 +444,7 @@ function formatSize(bytes) {
     // URL do Backend (Serveo/Localhost)
     // O usuário deve atualizar isso se o link mudar, ou usar um domínio fixo.
     // Tenta detectar se está rodando localmente ou no GitHub
-    let backendUrl = "http://35.238.69.53:8080";
+    let backendUrl = "http://35.192.109.211:8080";
 
     // Se estiver no GitHub, pode precisar configurar a URL manualmente ou usar a última conhecida
     // Exemplo: const PUBLIC_URL = "https://seu-link.lhr.life";

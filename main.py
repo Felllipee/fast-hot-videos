@@ -62,7 +62,7 @@ def get_local_ip():
     except Exception:
         return "127.0.0.1"
 
-LOCAL_IP = "35.238.69.53" # Public IP of the Google Cloud VM
+LOCAL_IP = "35.192.109.211" # Corrected Public IP of the Google Cloud VM
 BASE_URL = Config.BASE_URL or f"http://{LOCAL_IP}:{Config.PORT}"
 GITHUB_URL = "https://felllipee.github.io/fast-hot-videos/"
 
@@ -226,7 +226,7 @@ async def stream_video_from_telegram(identifier: str, file_id: str, start: int, 
     Streams a video file from Telegram using Pyrogram's stream_media.
     Optimized for efficient chunking and includes error handling.
     """
-    CHUNK_SIZE = 256 * 1024 # 256KB chunks for better responsiveness
+    CHUNK_SIZE = 512 * 1024 # 512KB chunks for a better speed/overhead balance
     
     try:
         offset_chunks = start // CHUNK_SIZE
