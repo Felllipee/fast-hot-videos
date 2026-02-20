@@ -29,7 +29,6 @@ from quart_cors import cors
 from pyrogram import Client, filters, idle
 from pyrogram.handlers import MessageHandler, CallbackQueryHandler
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
-import cv2
 from config import Config
 from utils.logger import setup_logger
 
@@ -207,7 +206,7 @@ async def prefetch_thumbnails():
                              await bot.download_media(msg.video.thumbs[0].file_id, file_name=thumb_path)
                     
                     if os.path.exists(thumb_path):
-                        logger.info(f"App loop started. Serving on {PUBLIC_IP_VM}")
+                        logger.info(f"Prefetched thumb for {vid_id}")
                     
                     # Responsive sleep
                     try:
@@ -235,7 +234,7 @@ async def stream_video_from_telegram(identifier: str, file_id: str, start: int, 
     Streams a video file from Telegram using Pyrogram's stream_media.
     Optimized for efficient chunking and includes error handling.
     """
-    PYRO_CHUNK_SIZE = 1024 * 1024 # 1MB is the default chunk size for Pyrogram's stream_media
+    PYRO_CHUNK_SIZE = 512 * 1024 # 512KB chunks for lower memory spikes on 1GB RAM VMs
     
     try:
         offset_chunks = start // PYRO_CHUNK_SIZE
@@ -757,41 +756,7 @@ async def stream_video(identifier):
         logger.error(f"Stream error: {e}")
         return str(e), 500
 
-async def generate_thumbnail(video_id, file_id):
-    """Generates a thumbnail from a video stream using OpenCV in a separate thread."""
-    thumb_path = os.path.join(THUMBS_DIR, f"{video_id}.jpg")
-    
-    # Return cached if exists
-    if os.path.exists(thumb_path):
-        return thumb_path
-
-    logger.info(f"Generating thumbnail for video {video_id}")
-    stream_url = f"http://127.0.0.1:{Config.PORT}/stream/{video_id}"
-    
-    def extract_frame_sync():
-        try:
-            cap = cv2.VideoCapture(stream_url)
-            if not cap.isOpened():
-                return None
-            
-            # Smart seek: 5s or 10% of video
-            cap.set(cv2.CAP_PROP_POS_MSEC, 5000)
-            
-            success, frame = cap.read()
-            cap.release()
-            
-            if success:
-                frame = cv2.resize(frame, (640, 360))
-                cv2.imwrite(thumb_path, frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
-                return thumb_path
-            return None
-        except Exception as e:
-            logger.error(f"CV2 Error: {e}")
-            return None
-
-    # Run blocking CV2 code in a thread pool execution
-    loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, extract_frame_sync)
+# Thumbnail generation via CV2 removed to save memory (OOM avoidance)
 
 @app_web.route("/static/<path:filename>")
 async def static_files(filename):

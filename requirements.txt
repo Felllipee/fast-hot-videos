@@ -1,6 +1,7 @@
 quart
-requests
-python-dotenv
+quart-cors
 pyrogram
+tgcrypto
+python-dotenv
 uvicorn
-opencv-python
+aiohttp
