@@ -22,7 +22,7 @@ async function fetchCategories() {
         // On GitHub, we might need a static categories file or just hardcode/extract from videos
         // For now, if GitHub, we rely on the hardcoded 'Tudo' and maybe generic ones, 
         // or we need a static categories.json. Let's try the local API if not on GitHub.
-        const url = isGitHub ? '/api/categories' : '/api/categories'; // GitHub can't serve this dynamically. 
+        const url = isGitHub ? `${API_BASE}/api/categories` : '/api/categories';
         // fallback: If GitHub, we just use the static list defined below or extracted from video list.
         if (isGitHub) {
             // Mock categories for GitHub Pages (Synced with main.py)
