@@ -25,6 +25,7 @@ import subprocess
 import threading
 import time
 from quart import Quart, render_template, jsonify, Response, redirect, request, send_from_directory
+from quart_cors import cors
 from pyrogram import Client, filters, idle
 from pyrogram.handlers import MessageHandler, CallbackQueryHandler
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
@@ -34,14 +35,7 @@ from utils.logger import setup_logger
 
 logger = setup_logger()
 app_web = Quart(__name__)
-
-# CORS Headers (Simple middleware)
-@app_web.after_request
-async def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-    return response
+app_web = cors(app_web, allow_origin="*")
 
 # Constants
 DATA_FILE = "data/videos.json"
