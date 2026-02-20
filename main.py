@@ -821,7 +821,7 @@ async def health_check():
             "status": bot_status,
             "me": bot_me
         },
-        "local_ip": LOCAL_IP,
+        "local_ip": get_local_ip(),
         "base_url": BASE_URL
     })
 
