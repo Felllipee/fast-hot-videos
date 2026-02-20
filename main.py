@@ -226,16 +226,11 @@ async def stream_video_from_telegram(identifier: str, file_id: str, start: int, 
     Streams a video file from Telegram using Pyrogram's stream_media.
     Optimized for efficient chunking and includes error handling.
     """
-    CHUNK_SIZE = 512 * 1024 # 512KB chunks for a better speed/overhead balance
+    PYRO_CHUNK_SIZE = 1024 * 1024 # 1MB is the default chunk size for Pyrogram's stream_media
     
     try:
-        offset_chunks = start // CHUNK_SIZE
-        start_in_chunk = start % CHUNK_SIZE
-        
-        # Calculate limit in chunks roughly, or let it stream to end
-        # stream_media limit is also likely in chunks if offset is. 
-        # But for safety, we usually just stream and break or let limit=0 (all).
-        # We'll use 0 for limit to avoid confusion and rely on client closing stream.
+        offset_chunks = start // PYRO_CHUNK_SIZE
+        start_in_chunk = start % PYRO_CHUNK_SIZE
         
         stream = bot.stream_media(
             file_id,
@@ -648,7 +643,7 @@ async def manage_callback_func(client: Client, callback_query: CallbackQuery):
 
 @app_web.route("/")
 async def index():
-    return await render_template("fast-hot-premium---streaming-dashboard/index.html")
+    return await send_from_directory(".", "index.html")
 
 @app_web.route("/<path:path>")
 async def static_proxy(path):
